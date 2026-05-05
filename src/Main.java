@@ -1,3 +1,4 @@
+import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -63,6 +64,9 @@ public class Main {
     }
 
     private static void runSessionMenu(MFAGateway gateway) {
+        // Record the login session access
+        gateway.getUser().addLog("User accessed Profile Session Dashboard.");
+        
         boolean active = true;
         while (active) {
             printSessionMenu(gateway.getUser().getUsername());
@@ -71,12 +75,25 @@ public class Main {
 
             switch (choice) {
                 case 1 -> new ProfileDashboard(gateway, scanner).run();
-                case 2 -> System.out.println("\n  [Feature placeholder] View activity log.");
+                case 2 -> viewActivityLog(gateway.getUser());
                 case 0 -> active = false;
             }
         }
         gateway.resetSession();
         System.out.println("\n  Logged out successfully.");
+    }
+
+    private static void viewActivityLog(User user) {
+        System.out.println("\n  ── Recent Activity Log ──");
+        List<String> logs = user.getActivityLog();
+        
+        if (logs.isEmpty()) {
+            System.out.println("  No recent activity.");
+        } else {
+            for (String log : logs) {
+                System.out.println("  " + log);
+            }
+        }
     }
 
     private static void printSessionMenu(String username) {

@@ -1,5 +1,3 @@
-import java.util.Scanner;
-
 /**
  * Session manager — bridges the User object and the chosen IAuthenticator.
  * Core authentication workflow (token expiry, failed-attempt tracking) is
@@ -38,14 +36,21 @@ public class MFAGateway {
     }
 
     /**
-     * Verifies user input. Tracks failed attempts.
+     * Verifies user input. Tracks failed attempts and logs activity.
      * @return true on success
      */
     public boolean verify(String input) {
         if (activeAuthenticator == null) throw new IllegalStateException("No authenticator selected.");
         boolean ok = activeAuthenticator.verifyToken(input);
-        if (!ok) failedAttempts++;
-        else failedAttempts = 0;
+        
+        if (!ok) {
+            failedAttempts++;
+            user.addLog("Failed MFA attempt using " + activeAuthenticator.getMethodName());
+        } else {
+            failedAttempts = 0;
+            user.addLog("Successful MFA login using " + activeAuthenticator.getMethodName());
+        }
+        
         return ok;
     }
 
@@ -59,7 +64,12 @@ public class MFAGateway {
      */
     public boolean verifyBackupCode(String code) {
         boolean ok = user.consumeBackupCode(code);
-        if (ok) failedAttempts = 0;
+        if (ok) {
+            failedAttempts = 0;
+            user.addLog("Successful login using Backup Recovery Code.");
+        } else {
+            user.addLog("Failed login attempt using invalid Backup Recovery Code.");
+        }
         return ok;
     }
 
