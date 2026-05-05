@@ -1,8 +1,10 @@
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Encapsulates all user state: credentials, active MFA methods, and backup codes.
+ * Encapsulates all user state: credentials, active MFA methods, backup codes, and activity logs.
  * Full encapsulation implemented by Person 3; used throughout by Person 1 (CLI) and Person 2 (auth flow).
  */
 public class User {
@@ -12,6 +14,7 @@ public class User {
     private final List<IAuthenticator> authMethods = new ArrayList<>();
     private int defaultMethodIndex = 0;
     private final List<String> backupCodes = new ArrayList<>();
+    private final List<String> activityLog = new ArrayList<>();
 
     public User(String username, String password) {
         this.username = username;
@@ -63,4 +66,15 @@ public class User {
     }
 
     public boolean hasAuthMethods() { return !authMethods.isEmpty(); }
+
+    // ── Activity Logging ─────────────────────────────────────────────────────
+
+    public void addLog(String event) {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        activityLog.add(timestamp + " - " + event);
+    }
+
+    public List<String> getActivityLog() {
+        return activityLog;
+    }
 }
