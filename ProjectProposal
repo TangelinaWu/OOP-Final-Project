@@ -1,0 +1,47 @@
+Project Title: Multi-Factor Authentication (MFA) Gateway: A User-Centric Security Simulator
+Project Objective: This project aims to develop a simulated Multi-Factor Authentication (MFA)
+gateway that balances robust backend security architecture with a seamless user experience. The
+system will model how users interact with different verification methods (e.g., Email, SMS,
+Authenticator App), allowing them to dynamically select their preferred method during login,
+and securely update or change their MFA preferences within their profile state.
+Core Features:
+● Dynamic Authentication Routing: Upon successful primary login
+(username/password), the system will prompt the user with their configured MFA
+options, allowing them to select their preferred verification route for that specific session.
+● Profile & Preference Management: Users will have a simulated dashboard where they
+can add new verification methods, remove outdated ones, or switch their default primary
+MFA method.
+● Simulated Code Dispatch & Validation: The system will mock the dispatching of
+security tokens (e.g., printing "Token 4920 sent via SMS" to the console) and validate
+user input against the generated tokens with simulated expiration states.
+● Fallback UX Protocol: If a user fails verification multiple times or loses access to a
+method, the system will trigger a secure fallback workflow (e.g., utilizing backup
+recovery codes).
+Architecture: The system will rely heavily on the Strategy Design Pattern to manage the various
+verification methods seamlessly.
+● Interfaces: An IAuthenticator interface will define common behaviors, specifically a
+generateToken() and a verifyToken() method.
+● Polymorphism & Classes: Concrete classes such as EmailAuthenticator,
+SMSAuthenticator, and AppAuthenticator will implement the IAuthenticator interface,
+allowing the system to process any method interchangeably without altering the core
+login logic.
+● Encapsulation: A User class will securely encapsulate user state, containing private
+attributes for credentials, a list of active IAuthenticator objects tied to their account, and a
+defined default method.
+● System Manager: An MFAGateway class will manage the session state, handling the
+interactions between the User objects and the chosen IAuthenticator.
+Interface & Implementation Details:
+● Language: The system will be implemented in Java .
+● User Interface: The project will utilize a Command-Line Interface (CLI) designed with
+clear, user-friendly prompts to navigate the login and preference-management menus.
+● Version Control: All development, including individual contributions and commit history,
+will be maintained and accessible via a public GitHub repository URL.
+
+UML Scope: The final project report will include comprehensive UML documentation mapped
+to the codebase:
+● Use Case Diagrams: Detailing the user's journey through logging in, selecting an
+alternative MFA method, and updating profile settings.
+● Sequence Diagrams: Visualizing the flow of data between the User, the MFAGateway,
+and the specific Authenticator classes during a token validation event.
+● Class Diagrams: Outlining the class hierarchies, interfaces, and associations that make up
+the authentication strategy.
