@@ -1,80 +1,83 @@
-/**
- * Session manager — bridges the User object and the chosen IAuthenticator.
- * Core authentication workflow (token expiry, failed-attempt tracking) is
- * extended by Person 2; class relationships are documented by Person 3.
- */
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 public class MFAGateway {
+    public static final int MAX_FAILED_ATTEMPTS = 3;
+    private static final DateTimeFormatter LOG_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    private static final int MAX_ATTEMPTS = 3;
-
-    private final User user;
+    private User user;
     private IAuthenticator activeAuthenticator;
-    private int failedAttempts = 0;
+    private int failedAttempts;
+    private boolean locked;
 
     public MFAGateway(User user) {
+        if (user == null) throw new IllegalArgumentException("User must not be null");
         this.user = user;
+        this.failedAttempts = 0;
+        this.locked = false;
+        log("Session initiated for user: " + user.getUsername());
     }
 
-    // ── Session helpers ───────────────────────────────────────────────────────
-
-    public User getUser() { return user; }
-
-    /** Sets the authenticator to use for the current session. */
-    public void selectAuthenticator(int index) {
-        activeAuthenticator = user.getAuthMethods().get(index);
+    public boolean selectAuthenticator(int index) {
+        IAuthenticator selected = user.getAuthMethod(index);
+        if (selected == null) { System.out.println("  [Gateway] Invalid method selection."); return false; }
+        activeAuthenticator = selected;
+        log("Auth method selected: " + activeAuthenticator.getMethodName());
+        return true;
     }
 
-    public IAuthenticator getActiveAuthenticator() { return activeAuthenticator; }
-
-    // ── Token flow (Person 2 expands these) ──────────────────────────────────
-
-    /** Dispatches a token and returns it (for testing hooks). */
     public String dispatchToken() {
-        if (activeAuthenticator == null) throw new IllegalStateException("No authenticator selected.");
-        failedAttempts = 0;
-        return activeAuthenticator.generateToken();
+        if (locked) { System.out.println("  [Gateway] Account locked. Use a backup recovery code."); return null; }
+        if (activeAuthenticator == null) { System.out.println("  [Gateway] No authentication method selected."); return null; }
+        String token = activeAuthenticator.generateToken();
+        log("Token dispatched via " + activeAuthenticator.getMethodName());
+        return token;
     }
 
-    /**
-     * Verifies user input. Tracks failed attempts and logs activity.
-     * @return true on success
-     */
     public boolean verify(String input) {
-        if (activeAuthenticator == null) throw new IllegalStateException("No authenticator selected.");
-        boolean ok = activeAuthenticator.verifyToken(input);
-        
-        if (!ok) {
-            failedAttempts++;
-            user.addLog("Failed MFA attempt using " + activeAuthenticator.getMethodName());
-        } else {
+        if (locked) { System.out.println("  [Gateway] Account locked. Use a backup recovery code."); return false; }
+        if (activeAuthenticator == null) { System.out.println("  [Gateway] No authentication method selected."); return false; }
+        boolean success = activeAuthenticator.verifyToken(input);
+        if (success) {
             failedAttempts = 0;
-            user.addLog("Successful MFA login using " + activeAuthenticator.getMethodName());
+            log("Verification SUCCESS via " + activeAuthenticator.getMethodName());
+        } else {
+            failedAttempts++;
+            log("Verification FAILED (attempt " + failedAttempts + " of " + MAX_FAILED_ATTEMPTS + ")");
+            if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                locked = true;
+                log("ACCOUNT LOCKED — max failed attempts reached");
+            }
         }
-        
-        return ok;
+        return success;
     }
 
-    public int getFailedAttempts() { return failedAttempts; }
-
-    public boolean isLocked() { return failedAttempts >= MAX_ATTEMPTS; }
-
-    /**
-     * Fallback: attempts to verify against the user's backup codes.
-     * @return true if a valid backup code was supplied
-     */
     public boolean verifyBackupCode(String code) {
-        boolean ok = user.consumeBackupCode(code);
-        if (ok) {
+        if (user.consumeBackupCode(code)) {
             failedAttempts = 0;
-            user.addLog("Successful login using Backup Recovery Code.");
-        } else {
-            user.addLog("Failed login attempt using invalid Backup Recovery Code.");
+            locked = false;
+            if (activeAuthenticator instanceof BaseAuthenticator ba) ba.resetToken();
+            log("Recovery via backup code. Account unlocked.");
+            return true;
         }
-        return ok;
+        log("Backup code attempt FAILED");
+        return false;
     }
 
     public void resetSession() {
-        failedAttempts = 0;
+        if (activeAuthenticator instanceof BaseAuthenticator ba) ba.resetToken();
         activeAuthenticator = null;
+        failedAttempts = 0;
+        locked = false;
+        log("Session reset.");
+    }
+
+    public boolean isLocked() { return locked; }
+    public int getFailedAttempts() { return failedAttempts; }
+    public IAuthenticator getActiveAuthenticator() { return activeAuthenticator; }
+    public User getUser() { return user; }
+
+    private void log(String event) {
+        user.addLog("[" + LocalDateTime.now().format(LOG_FMT) + "] " + event);
     }
 }
