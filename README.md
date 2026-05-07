@@ -4,7 +4,10 @@
 **Github URL:** [(https://github.com/TangelinaWu/OOP-Final-Project)]   
 
 ### 👥 Team Members 
-|Student 1 (Yifan Zuo) | Student 2 ([Angelina Wu]) | Student 3 (Zheqi Zhang) |
+
+| Student 1 | Student 2 | Student 3 |
+|-----------|-----------|-----------|
+| Yifan Zuo | Angelina Wu | Zheqi Zhang |
 
 ---
 
