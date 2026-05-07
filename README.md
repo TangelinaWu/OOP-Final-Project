@@ -4,7 +4,10 @@
 **Github URL:** [(https://github.com/TangelinaWu/OOP-Final-Project)]   
 
 ### 👥 Team Members 
-|Student 1 (Yifan Zuo) | Student 2 ([Angelina Wu]) | Student 3 (Zheqi Zhang) |
+
+| Student 1 | Student 2 | Student 3 |
+|-----------|-----------|-----------|
+| Yifan Zuo | Angelina Wu | Zheqi Zhang |
 
 ---
 
@@ -185,7 +188,7 @@ sequenceDiagram
     end
 ```
 
-    C. Uses Cases Diagram
+    C. Uses Cases Diagram 
     This outlines the boundaries of the simulator and the actions available to the user from the CLI.
 
 ```mermaid
@@ -210,3 +213,15 @@ graph LR
     UC2 -. "<<includes>>" .-> UC3
     UC4 -. "<<includes>>" .-> UC3
 ```
+
+     Uses Cases Description 
+
+
+| UC Ref | Name | Overview | Related Use Cases | Actors |
+|--------|------|----------|-------------------|--------|
+| UC-01 | Login with credentials | The user enters their username and password via the CLI. The system validates credentials against the in-memory UserRepository. On success, an MFA session is initiated. | includes UC-02 | User |
+| UC-02 | Select MFA method | After a successful primary login, the system presents the user's configured verification methods (Email, SMS, Authenticator App). The user selects their preferred method for the current session. | includes UC-03 | User, MFAGateway |
+| UC-03 | Generate secure token | The MFAGateway triggers the selected IAuthenticator to generate a one-time token with a 30-second TTL. The system simulates dispatch (e.g., "Token 4920 sent via SMS") and begins the expiration timer. | Extended by UC-02, UC-04 | MFAGateway, IAuthenticator |
+| UC-04 | Verify MFA token | The user submits their token code. The system verifies it against the active token within the TTL window. Three consecutive failures trigger an account lockout; the user may also resend or use a backup recovery code. | includes UC-03 | User, MFAGateway |
+| UC-05 | Update default MFA settings | From the profile dashboard, the user can add new verification methods, remove existing ones, or change their default primary MFA method. Changes are persisted to the in-memory User object for the session. | — | User |
+| UC-06 | View activity log | From the profile dashboard, the user can view a chronological log of recent authentication events (logins, method changes, failed attempts, lockouts) stored in the User object's activity log. | — | User |
