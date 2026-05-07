@@ -54,7 +54,7 @@ Test Scenarios to Try:
 
 ## 3. System Design (UML)
 
-### A. Class Diagram
+    A. Class Diagram
 This diagram details the static structure of the system, highlighting the polymorphic `IAuthenticator` interface, the `BaseAuthenticator` abstract class managing token expiration, and the strict encapsulation of the `User` state.
 
 ```mermaid
@@ -131,3 +131,82 @@ classDiagram
 
     User o-- IAuthenticator : owns
     MFAGateway *-- User : manages
+```
+
+    B. Sequence Diagram
+    This diagram illustrates the dynamic object interaction during a successful login and token verification event, including the verification loop and lockout conditions.
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant CLI as Main (UI)
+    participant DB as UserRepository
+    participant GW as MFAGateway
+    participant Auth as IAuthenticator
+
+    U->>CLI: Enters Username & Password
+    CLI->>DB: findByUsername(username)
+    DB-->>CLI: Returns User Object
+    
+    CLI->>GW: Initiates Session(User)
+    CLI->>GW: selectAuthenticator(index)
+    
+    CLI->>GW: dispatchToken()
+    GW->>Auth: generateToken()
+    Auth-->>GW: Returns Token
+    GW-->>CLI: Prints Simulated Dispatch
+    
+    loop Token Verification Loop
+        CLI->>U: Prompts for Code (or 'resend' / 'leave')
+        U->>CLI: Inputs Response
+        
+        alt Response == "leave"
+            CLI-->>U: MFA Aborted
+            
+        else Response == "resend"
+            CLI->>GW: dispatchToken()
+            GW->>Auth: generateToken()
+            Auth-->>GW: Returns New Token
+            GW-->>CLI: Prints Simulated Dispatch
+            
+        else Response == "code"
+            CLI->>GW: verify(input)
+            GW->>Auth: verifyToken(input)
+            Auth-->>GW: Returns Match Boolean
+            
+            alt Match == True
+                GW-->>CLI: Returns True
+                CLI-->>U: Access Granted
+            else Match == False (Lockout Triggered)
+                GW-->>CLI: Returns False (Locked = True)
+                CLI-->>U: Prints Account Locked Warning
+            end
+        end
+    end
+```
+
+    C. Uses Cases Diagram
+    This outlines the boundaries of the simulator and the actions available to the user from the CLI.
+
+```mermaid
+graph LR
+    User((User))
+    
+    subgraph MFA Gateway Simulator
+        UC1([UC-01: Login with Credentials])
+        UC2([UC-02: Select MFA Method])
+        UC3([UC-03: Generate Secure Token])
+        UC4([UC-04: Verify MFA Token])
+        UC5([UC-05: Update Default MFA Settings])
+        UC6([UC-06: View Activity Log])
+    end
+    
+    User --> UC1
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    
+    UC1 -. "<<includes>>" .-> UC2
+    UC2 -. "<<includes>>" .-> UC3
+    UC4 -. "<<includes>>" .-> UC3
+```
