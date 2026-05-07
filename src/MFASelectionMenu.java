@@ -55,16 +55,26 @@ public class MFASelectionMenu {
         gateway.dispatchToken();
 
         while (!gateway.isLocked()) {
-            System.out.print("\n  Enter verification code: ");
+            System.out.print("\n  Enter verification code (or type 'resend' / 'leave'): ");
             String input = scanner.nextLine().trim();
+
+            if (input.equalsIgnoreCase("leave")) {
+                System.out.println("  MFA aborted. Returning to main menu.");
+                return false;
+            }
+            if (input.equalsIgnoreCase("resend")) {
+                gateway.dispatchToken();
+                continue;
+            }
 
             if (gateway.verify(input)) {
                 System.out.println("\n  Verification successful!");
                 return true;
             }
 
-            int remaining = 3 - gateway.getFailedAttempts();
-            if (remaining > 0) {
+            // Only print remaining attempts if the account isn't locked yet
+            if (!gateway.isLocked()) {
+                int remaining = 3 - gateway.getFailedAttempts();
                 System.out.println("  Incorrect code. " + remaining + " attempt(s) remaining.");
             }
         }
