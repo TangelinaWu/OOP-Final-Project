@@ -19,7 +19,7 @@ public class MFAGateway {
     }
 
     public boolean selectAuthenticator(int index) {
-        IAuthenticator selected = user.getAuthMethod(index);
+        IAuthenticator selected = user.getAuthMethods().get(index);
         if (selected == null) { System.out.println("  [Gateway] Invalid method selection."); return false; }
         activeAuthenticator = selected;
         log("Auth method selected: " + activeAuthenticator.getMethodName());
@@ -38,14 +38,17 @@ public class MFAGateway {
         if (locked) { System.out.println("  [Gateway] Account locked. Use a backup recovery code."); return false; }
         if (activeAuthenticator == null) { System.out.println("  [Gateway] No authentication method selected."); return false; }
         boolean success = activeAuthenticator.verifyToken(input);
+        
         if (success) {
             failedAttempts = 0;
             log("Verification SUCCESS via " + activeAuthenticator.getMethodName());
         } else {
             failedAttempts++;
             log("Verification FAILED (attempt " + failedAttempts + " of " + MAX_FAILED_ATTEMPTS + ")");
+            
             if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
                 locked = true;
+                System.out.println("  [Gateway] ACCOUNT LOCKED — max failed attempts reached.");
                 log("ACCOUNT LOCKED — max failed attempts reached");
             }
         }

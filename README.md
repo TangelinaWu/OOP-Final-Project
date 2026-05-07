@@ -31,132 +31,103 @@ The main benefit of this system is its modularity; by utilizing the Strategy Des
    cd src
 3. Compile the Java files: javac *.java
 4. Run the application: java Main
-Pre-Seeded Demo Accounts:
-    Username: alice | Password: password123 (Configured with Email, SMS, and App)
-    Username: bob | Password: securepass (Configured with SMS only)
 
-## 3. System Design(UML)
-    A. Class Diagram   
-        This diagram details the static structure of the system, highlighting the polymorphic IAuthenticator interface and the strict encapsulation of the User state, including activity logging.
+5. Pre-Seeded Demo Accounts & Testing Flow
+You can test the system's dynamic routing, 30-second token expiration, and lockout features using these accounts:
 
-        classDiagram
-        direction LR
-        
-        class IAuthenticator {
-            <<interface>>
-            +generateToken() String
-            +verifyToken(input: String) boolean
-            +getMethodName() String
-        }
-        
-        class SMSAuthenticator {
-            -lastToken: String
-            +generateToken() String
-            +verifyToken(input: String) boolean
-            +getMethodName() String
-        }
-        
-        class EmailAuthenticator {
-            -lastToken: String
-            +generateToken() String
-            +verifyToken(input: String) boolean
-            +getMethodName() String
-        }
-        
-        class AppAuthenticator {
-            -lastToken: String
-            +generateToken() String
-            +verifyToken(input: String) boolean
-            +getMethodName() String
-        }
-        
-        IAuthenticator <|.. SMSAuthenticator : implements
-        IAuthenticator <|.. EmailAuthenticator : implements
-        IAuthenticator <|.. AppAuthenticator : implements
+Account 1: Alice
+Username: alice | Password: password123
+Configured Methods: Email, SMS, Authenticator App
+Backup Recovery Codes: BACK-1111, BACK-2222, BACK-3333
 
-        class User {
-            -username: String
-            -password: String
-            -authMethods: List~IAuthenticator~
-            -defaultMethodIndex: int
-            -backupCodes: List~String~
-            -activityLog: List~String~
-            +checkPassword(input: String) boolean
-            +addAuthMethod(method: IAuthenticator)
-            +removeAuthMethod(methodName: String)
-            +consumeBackupCode(code: String) boolean
-            +addLog(event: String)
-            +getActivityLog() List~String~
-        }
+Account 2: Bob
+Username: bob | Password: securepass
+Configured Methods: SMS only
+Backup Recovery Codes: BACK-9999
 
-        class MFAGateway {
-            -user: User
-            -activeAuthenticator: IAuthenticator
-            -failedAttempts: int
-            +dispatchToken() String
-            +verify(input: String) boolean
-            +verifyBackupCode(code: String) boolean
-            +resetSession()
-        }
+Test Scenarios to Try:
+    1. Log in, select a method, input the exact generated token, and access the profile dashboard to view the Activity Log.
 
-        User o-- IAuthenticator : owns
-        MFAGateway *-- User : manages
+    2. Log in, request an Authenticator App token, wait 31 seconds, and attempt to use it. Type resend to get a new code.
 
+    3. Deliberately fail the verification 3 times to trigger an account lock. Input a Backup Recovery Code to regain access.
 
-    B. Sequence Diagram
-        This diagram illustrates the dynamic object interaction during a successful login and token verification event.
+## 3. System Design (UML)
 
-        sequenceDiagram
-        actor U as User
-        participant CLI as Main (UI)
-        participant DB as UserRepository
-        participant GW as MFAGateway
-        participant Auth as IAuthenticator
+### A. Class Diagram
+This diagram details the static structure of the system, highlighting the polymorphic `IAuthenticator` interface, the `BaseAuthenticator` abstract class managing token expiration, and the strict encapsulation of the `User` state.
 
-        U->>CLI: Enters Username & Password
-        CLI->>DB: findByUsername(username)
-        DB-->>CLI: Returns User Object
-        
-        CLI->>GW: Initiates Session(User)
-        CLI->>GW: selectAuthenticator(index)
-        
-        CLI->>GW: dispatchToken()
-        GW->>Auth: generateToken()
-        Auth-->>GW: Returns Token
-        GW-->>CLI: Prints Simulated Dispatch
-        
-        CLI->>U: Prompts for Verification Code
-        U->>CLI: Inputs Code
-        
-        CLI->>GW: verify(input)
-        GW->>Auth: verifyToken(input)
-        Auth-->>GW: Returns True
-        GW-->>CLI: Returns True
-        
-        CLI-->>U: Access Granted
+```mermaid
+classDiagram
+    direction TB
+    
+    class IAuthenticator {
+        <<interface>>
+        +generateToken() String
+        +verifyToken(input: String) boolean
+        +getMethodName() String
+    }
+    
+    class BaseAuthenticator {
+        <<abstract>>
+        #TOKEN_TTL_SECONDS: int
+        -lastToken: String
+        -tokenGeneratedAt: Instant
+        +generateToken() String
+        #simulateDispatch(token: String)*
+        +verifyToken(input: String) boolean
+        +isExpired() boolean
+        +secondsRemaining() long
+        #invalidateToken()
+        +resetToken()
+    }
+    
+    class SMSAuthenticator {
+        +getMethodName() String
+        #simulateDispatch(token: String)
+    }
+    
+    class EmailAuthenticator {
+        +getMethodName() String
+        #simulateDispatch(token: String)
+    }
+    
+    class AppAuthenticator {
+        +getMethodName() String
+        #simulateDispatch(token: String)
+    }
+    
+    IAuthenticator <|.. BaseAuthenticator : implements
+    BaseAuthenticator <|-- SMSAuthenticator : extends
+    BaseAuthenticator <|-- EmailAuthenticator : extends
+    BaseAuthenticator <|-- AppAuthenticator : extends
 
+    class User {
+        -username: String
+        -password: String
+        -authMethods: List~IAuthenticator~
+        -defaultMethodIndex: int
+        -backupCodes: List~String~
+        -activityLog: List~String~
+        +checkPassword(input: String) boolean
+        +addAuthMethod(method: IAuthenticator)
+        +removeAuthMethod(methodName: String)
+        +consumeBackupCode(code: String) boolean
+        +addLog(event: String)
+        +getActivityLog() List~String~
+    }
 
-    C. Uses Cases Diagram
-        This outlines the boundaries of the simulator and the actions available to the user from the CLI.
+    class MFAGateway {
+        -user: User
+        -activeAuthenticator: IAuthenticator
+        -failedAttempts: int
+        -locked: boolean
+        +selectAuthenticator(index: int) boolean
+        +dispatchToken() String
+        +verify(input: String) boolean
+        +verifyBackupCode(code: String) boolean
+        +resetSession()
+    }
 
-        graph LR
-        User((User))
-        
-        subgraph MFA Gateway Simulator
-            UC1([UC-01: Login with Credentials])
-            UC2([UC-02: Select MFA Method])
-            UC3([UC-03: Generate Secure Token])
-            UC4([UC-04: Verify MFA Token])
-            UC5([UC-05: Update Default MFA Settings])
-            UC6([UC-06: View Activity Log])
-        end
-        
-        User --> UC1
-        User --> UC4
-        User --> UC5
-        User --> UC6
-        
-        UC1 -. "<<includes>>" .-> UC2
-        UC2 -. "<<includes>>" .-> UC3
-        UC4 -. "<<includes>>" .-> UC3
----
+    User o-- IAuthenticator : owns
+    MFAGateway *-- User : manages
